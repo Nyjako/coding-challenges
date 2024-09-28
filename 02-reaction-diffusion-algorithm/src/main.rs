@@ -1,5 +1,6 @@
 use nannou::prelude::*;
 use nannou::wgpu::{CommandEncoder, TextureBuilder, TextureUsages};
+use rayon::prelude::*;
 use std::mem;
 
 const WIDTH:  u32 = 300;
@@ -116,19 +117,17 @@ fn laplace_b(grid: &Vec<Chemical>, center: usize) -> f32 {
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
     mem::swap(&mut model.grid, &mut model.next_grid);
-    model.next_grid = model.grid.clone();
 
-    for i in 0..model.next_grid.len() {
-        let a = model.grid[i].a;
-        let b = model.grid[i].b;
+    model.next_grid
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, cell)| {
+            let a = model.grid[i].a;
+            let b = model.grid[i].b;
 
-        model.next_grid[i].a = (a + (DIFFUSION_RATE_A * laplace_a(&model.grid, i)) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
-        model.next_grid[i].b = (b + (DIFFUSION_RATE_B * laplace_b(&model.grid, i)) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
-
-
-
-        // model.next_grid[i].b = model.grid[i].b + 0.6;
-    }
+            cell.a = (a + (DIFFUSION_RATE_A * laplace_a(&model.grid, i)) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
+            cell.b = (b + (DIFFUSION_RATE_B * laplace_b(&model.grid, i)) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
+        });
 }
 
 
