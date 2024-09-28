@@ -3,8 +3,8 @@ use nannou::wgpu::{CommandEncoder, TextureBuilder, TextureUsages};
 use rayon::prelude::*;
 use std::mem;
 
-const WIDTH:  u32 = 300;
-const HEIGHT: u32 = 300;
+const WIDTH:  u32 = 400;
+const HEIGHT: u32 = 400;
 
 // Some varibles for formula
 const DIFFUSION_RATE_A: f32 = 1.0;
@@ -56,15 +56,15 @@ fn model(app: &App) -> Model {
 
     let mut grid = vec![Chemical{a: 1.0, b: 0.0}; HEIGHT as usize * WIDTH as usize];
 
-    for i in 100..200 {
-        for j in 100..200 {
+    for i in 150..250 {
+        for j in 150..250 {
             grid[get_i(i, j)].b = 1.0
         }
     }
 
     Model {
         grid: grid.clone(),
-        next_grid: grid.clone(),
+        next_grid: grid,
         texture,
     }
 }
@@ -73,46 +73,39 @@ fn event(_app: &App, _model: &mut Model, _event: Event) {
 
 }
 
-fn laplace_a(grid: &Vec<Chemical>, center: usize) -> f32 {
+fn laplace(grid: &Vec<Chemical>, center: usize) -> (f32, f32) {
     let (x, y) = get_xy(center);
 
+    // Handle edge cases for grid boundaries
     if x == 0 || y == 0 || x == WIDTH as usize - 1 || y == HEIGHT as usize - 1 {
-        return grid[center].a;
+        return (grid[center].a, grid[center].b);
     }
 
-    let mut sum: f32 = 0.0;
+    let mut sum_a: f32 = 0.0;
+    let mut sum_b: f32 = 0.0;
 
-    sum += grid[center].a * -1.0;
-    sum += grid[get_i(x - 1, y)].a * 0.2;
-    sum += grid[get_i(x + 1, y)].a * 0.2;
-    sum += grid[get_i(x, y + 1)].a * 0.2;
-    sum += grid[get_i(x, y - 1)].a * 0.2;
-    sum += grid[get_i(x - 1, y - 1)].a * 0.05;
-    sum += grid[get_i(x - 1, y + 1)].a * 0.05;
-    sum += grid[get_i(x + 1, y - 1)].a * 0.05;
-    sum += grid[get_i(x + 1, y + 1)].a * 0.05;
-    sum
-}
+    let weights = [
+        (-1.0,  0,  0),  // center
+        ( 0.2, -1,  0),  // left
+        ( 0.2,  1,  0),  // right
+        ( 0.2,  0,  1),  // below
+        ( 0.2,  0, -1),  // above
+        ( 0.05, -1, -1), // top-left
+        ( 0.05, -1,  1), // bottom-left
+        ( 0.05,  1, -1), // top-right
+        ( 0.05,  1,  1), // bottom-right
+    ];
 
-fn laplace_b(grid: &Vec<Chemical>, center: usize) -> f32 {
-    let (x, y) = get_xy(center);
+    for (weight, dx, dy) in &weights {
+        let neighbor_x = (x as isize + dx) as usize;
+        let neighbor_y = (y as isize + dy) as usize;
+        let neighbor_idx = get_i(neighbor_x, neighbor_y);
 
-    if x == 0 || y == 0 || x == WIDTH as usize - 1 || y == HEIGHT as usize - 1 {
-        return grid[center].b;
+        sum_a += grid[neighbor_idx].a * weight;
+        sum_b += grid[neighbor_idx].b * weight;
     }
 
-    let mut sum: f32 = 0.0;
-
-    sum += grid[center].b * -1.0;
-    sum += grid[get_i(x - 1, y)].b * 0.2;
-    sum += grid[get_i(x + 1, y)].b * 0.2;
-    sum += grid[get_i(x, y + 1)].b * 0.2;
-    sum += grid[get_i(x, y - 1)].b * 0.2;
-    sum += grid[get_i(x - 1, y - 1)].b * 0.05;
-    sum += grid[get_i(x - 1, y + 1)].b * 0.05;
-    sum += grid[get_i(x + 1, y - 1)].b * 0.05;
-    sum += grid[get_i(x + 1, y + 1)].b * 0.05;
-    sum
+    (sum_a, sum_b)
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
@@ -124,14 +117,15 @@ fn update(_app: &App, model: &mut Model, _update: Update) {
         .for_each(|(i, cell)| {
             let a = model.grid[i].a;
             let b = model.grid[i].b;
+            let (laplace_a, laplace_b) = laplace(&model.grid, i);
 
-            cell.a = (a + (DIFFUSION_RATE_A * laplace_a(&model.grid, i)) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
-            cell.b = (b + (DIFFUSION_RATE_B * laplace_b(&model.grid, i)) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
+            cell.a = (a + (DIFFUSION_RATE_A * laplace_a) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
+            cell.b = (b + (DIFFUSION_RATE_B * laplace_b) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
         });
 }
 
 
-fn view(app: &App, model: &Model, frame: Frame){
+fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(WHITE);
     let draw = app.draw();
 
