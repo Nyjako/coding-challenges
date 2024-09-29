@@ -3,8 +3,11 @@ use nannou::wgpu::{CommandEncoder, TextureBuilder, TextureUsages};
 use rayon::prelude::*;
 use std::mem;
 
-const WIDTH:  u32 = 400;
-const HEIGHT: u32 = 400;
+const WIDTH:  u32 = 800;
+const HEIGHT: u32 = 800;
+const STEPS_PER_UPDATE: usize = 10;
+const RANGE_W: std::ops::Range<usize> = 300..500;
+const RANGE_H: std::ops::Range<usize> = 300..500;
 
 // Some varibles for formula
 const DIFFUSION_RATE_A: f32 = 1.0;
@@ -56,8 +59,8 @@ fn model(app: &App) -> Model {
 
     let mut grid = vec![Chemical{a: 1.0, b: 0.0}; HEIGHT as usize * WIDTH as usize];
 
-    for i in 150..250 {
-        for j in 150..250 {
+    for i in RANGE_W {
+        for j in RANGE_H {
             grid[get_i(i, j)].b = 1.0
         }
     }
@@ -109,19 +112,20 @@ fn laplace(grid: &Vec<Chemical>, center: usize) -> (f32, f32) {
 }
 
 fn update(_app: &App, model: &mut Model, _update: Update) {
-    mem::swap(&mut model.grid, &mut model.next_grid);
+    for _ in 0..STEPS_PER_UPDATE {
+        mem::swap(&mut model.grid, &mut model.next_grid);
+        model.next_grid
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, cell)| {
+                let a = model.grid[i].a;
+                let b = model.grid[i].b;
+                let (laplace_a, laplace_b) = laplace(&model.grid, i);
 
-    model.next_grid
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(i, cell)| {
-            let a = model.grid[i].a;
-            let b = model.grid[i].b;
-            let (laplace_a, laplace_b) = laplace(&model.grid, i);
-
-            cell.a = (a + (DIFFUSION_RATE_A * laplace_a) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
-            cell.b = (b + (DIFFUSION_RATE_B * laplace_b) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
-        });
+                cell.a = (a + (DIFFUSION_RATE_A * laplace_a) - (a * (b * b)) + (FEED * (1.0 - a))).clamp(0.0, 1.0);
+                cell.b = (b + (DIFFUSION_RATE_B * laplace_b) + (a * (b * b)) - ((KILL + FEED) * b)).clamp(0.0, 1.0);
+            });
+    }
 }
 
 
@@ -145,8 +149,7 @@ fn draw_grid(app: &App, texture: &wgpu::Texture, grid: &Vec<Chemical>, draw: &Dr
 
     let mut pixels = vec![0u8; WIDTH as usize * HEIGHT as usize * 4];
 
-    for (i, pixel) in pixels.chunks_mut(4).enumerate() {
-
+    pixels.par_chunks_exact_mut(4).enumerate().for_each(|(i, pixel)| {
         let a = grid[i].a;
         let b = grid[i].b;
         let c = (a - b) * 255.0;
@@ -157,7 +160,7 @@ fn draw_grid(app: &App, texture: &wgpu::Texture, grid: &Vec<Chemical>, draw: &Dr
         pixel[1] = intensity; 
         pixel[2] = intensity;
         pixel[3] = 255;  // Alpha (fully opaque)
-    }
+    });
 
     texture.upload_data(device, &mut encoder, &pixels);
     window.queue().submit(Some(encoder.finish()));
