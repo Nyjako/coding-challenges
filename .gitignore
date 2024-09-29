@@ -1,2 +1,9 @@
 # Ignore all target directories
 target/
+
+# C++
+build/
+
+# vscode generated garbage
+.vscode/
+.cache/
