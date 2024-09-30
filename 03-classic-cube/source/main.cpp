@@ -4,11 +4,10 @@
 #include "cinder/CameraUi.h"
 #include <cinder/Vector.h>
 #include <cinder/gl/wrapper.h>
+#include <glm/fwd.hpp>
+#include <glm/gtx/quaternion.hpp>
 
-using namespace ci;
-using namespace ci::app;
-
-class RotatingCube : public App 
+class RotatingCube : public ci::app::App 
 {
 public:
     void setup() override;
@@ -16,10 +15,10 @@ public:
     void draw() override;
 
 private:
-    gl::BatchRef m_Cube;
-    gl::GlslProgRef m_Shader;
-    CameraPersp m_Cam;
-    CameraUi m_CamUi;
+    ci::gl::BatchRef m_Cube;
+    ci::gl::GlslProgRef m_Shader;
+    ci::CameraPersp m_Cam;
+    ci::CameraUi m_CamUi;
 
     float m_RotationAngle = 0.0f;
 };
@@ -27,18 +26,23 @@ private:
 void RotatingCube::setup() 
 {
     // Load and compile shaders
-    m_Shader = gl::GlslProg::create(loadAsset("shaders/cube.vert"), loadAsset("shaders/cube.frag"));
+    try {
+        m_Shader = ci::gl::GlslProg::create(loadAsset("shaders/cube.vert"), loadAsset("shaders/cube.frag"));
+    } catch (const ci::gl::GlslProgCompileExc& ex) {
+        console() << "Shader compile error: " << ex.what() << std::endl;
+        quit();
+    }
 
     // Create cube mesh
-    auto cube = geom::Cube().subdivisions(1);
-    m_Cube = gl::Batch::create(cube, m_Shader);
+    auto cube = ci::geom::Cube().subdivisions(1);
+    m_Cube = ci::gl::Batch::create(cube, m_Shader);
 
     // camera setup
-    m_Cam.lookAt(vec3(3, 3, 3), vec3(0));
-    m_CamUi = CameraUi(&m_Cam, getWindow());
+    m_Cam.lookAt(ci::vec3(3, 3, 3), ci::vec3(0));
+    m_CamUi = ci::CameraUi(&m_Cam, getWindow());
 
-    gl::enableDepthWrite();
-    gl::enableDepthRead();
+    ci::gl::enableDepthWrite();
+    ci::gl::enableDepthRead();
 }
 
 void RotatingCube::update() 
@@ -48,14 +52,15 @@ void RotatingCube::update()
 
 void RotatingCube::draw() 
 {
-    gl::clear(Color(0, 0, 0));
+    ci::gl::clear(ci::Color(0, 0, 0));
 
-    // Rotation
-    gl::setMatrices(m_Cam);
-    gl::rotate(m_RotationAngle, vec3(1, 1, 0));
+    ci::gl::setMatrices(m_Cam);
 
-    // draw cube
+    glm::mat4 modelMatrix = glm::rotate(m_RotationAngle, glm::vec3(1, 1, 0));
+
+    m_Shader->uniform("uModelViewProjection", m_Cam.getProjectionMatrix() * m_Cam.getViewMatrix() * modelMatrix);
+
     m_Cube->draw();
 }
 
-CINDER_APP(RotatingCube, RendererGl)
+CINDER_APP(RotatingCube, cinder::app::RendererGl)
