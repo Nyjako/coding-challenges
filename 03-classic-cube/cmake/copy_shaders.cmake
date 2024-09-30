@@ -1,5 +1,5 @@
 set(SHADERS_DIR "${CMAKE_SOURCE_DIR}/shaders")
-set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/assets/shaders")
 
 add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
