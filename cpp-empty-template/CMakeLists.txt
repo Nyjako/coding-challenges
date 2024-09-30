@@ -32,8 +32,8 @@ CPMAddPackage(
   GIT_TAG master
 )
 
-add_executable(Template 
+add_executable(${PROJECT_NAME}
     source/main.cpp
 )
 
-target_link_libraries(Template PRIVATE cinder)
+target_link_libraries(${PROJECT_NAME} PRIVATE cinder)
