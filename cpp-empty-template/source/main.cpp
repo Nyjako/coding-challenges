@@ -4,11 +4,7 @@
 #include <cinder/GeomIo.h>
 #include <cmath>
 
-using namespace ci;
-using namespace ci::app;
-using namespace std;
-
-class TemplateAPP : public App 
+class TemplateAPP : public ci::app::App 
 {
 public:
     void setup() override;
@@ -16,7 +12,7 @@ public:
     void draw() override;
 
 private:
-    Rectf m_Rect;
+    ci::Rectf m_Rect;
     float m_Rotation;
 };
 
@@ -25,7 +21,7 @@ void TemplateAPP::setup()
     float rectWidth  = 200.0f;
     float rectHeight = 100.0f;
 
-     m_Rect = Rectf(-rectWidth / 2, -rectHeight / 2, rectWidth / 2, rectHeight / 2);
+     m_Rect = ci::Rectf(-rectWidth / 2, -rectHeight / 2, rectWidth / 2, rectHeight / 2);
 
     m_Rotation = 0.0f;
 }
@@ -38,25 +34,25 @@ void TemplateAPP::update()
 void TemplateAPP::draw() 
 {
     // Clear the window
-    gl::clear(Color(51 / 255.0f, 51 / 255.0f, 51 / 255.0f)); // Clear the window with black
+    ci::gl::clear(ci::Color(51 / 255.0f, 51 / 255.0f, 51 / 255.0f)); // Clear the window with black
 
     // Set the rectangle color to "whitesmoke"
-    gl::color(1.0f, 0.98f, 0.98f);
+    ci::gl::color(1.0f, 0.98f, 0.98f);
 
     // Save the state of the OpenGL matrix
-    gl::pushMatrices();
+    ci::gl::pushMatrices();
 
     // Translate to the center of the rectangle
-    gl::translate(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f);
+    ci::gl::translate(getWindowWidth() / 2.0f, getWindowHeight() / 2.0f);
 
     // Rotate around the center
-    gl::rotate(m_Rotation);
+    ci::gl::rotate(m_Rotation);
 
     // Draw the rectangle (shifted back to original position)
-    gl::drawSolidRect(m_Rect);
+    ci::gl::drawSolidRect(m_Rect);
 
     // Restore the OpenGL matrix state
-    gl::popMatrices();
+    ci::gl::popMatrices();
 }
 
-CINDER_APP(TemplateAPP, RendererGl)
+CINDER_APP(TemplateAPP, cinder::app::RendererGl)
